@@ -33,6 +33,9 @@ func Check(program *ast.Program) []error {
 	}
 
 	var diagnostics []error
+	if len(program.Classes) == 0 {
+		return []error{Diagnostic{Line: 1, Message: "program must declare at least one class"}}
+	}
 	classes := make(map[string]int)
 	for _, class := range program.Classes {
 		if previousLine, exists := classes[class.Name]; exists {

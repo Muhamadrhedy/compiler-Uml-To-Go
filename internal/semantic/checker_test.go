@@ -60,3 +60,7 @@ func assertContains(t *testing.T, errors []error, part string) {
 	}
 	t.Fatalf("expected an error containing %q, got %v", part, errors)
 }
+
+func TestCheckRejectsProgramWithoutClasses(t *testing.T) {
+	assertContains(t, Check(&ast.Program{}), "at least one class")
+}

@@ -70,3 +70,24 @@ func TestGenerateRejectsFieldNameCollision(t *testing.T) {
 		t.Fatal("expected generated field collision error")
 	}
 }
+
+func TestGenerateRejectsClassNameCollision(t *testing.T) {
+	program := &ast.Program{Classes: []ast.ClassDecl{
+		{Name: "user"},
+		{Name: "User"},
+	}}
+	if _, err := Generate(program); err == nil || !strings.Contains(err.Error(), "same Go type") {
+		t.Fatalf("expected class name collision error, got %v", err)
+	}
+}
+
+func TestGenerateRejectsFieldAndMethodNameCollision(t *testing.T) {
+	program := &ast.Program{Classes: []ast.ClassDecl{{
+		Name:       "User",
+		Attributes: []ast.AttributeDecl{{Name: "login", Type: "bool", Visibility: "+"}},
+		Methods:    []ast.MethodDecl{{Name: "login", ReturnType: "bool", Visibility: "+"}},
+	}}}
+	if _, err := Generate(program); err == nil || !strings.Contains(err.Error(), "same Go identifier") {
+		t.Fatalf("expected field/method collision error, got %v", err)
+	}
+}

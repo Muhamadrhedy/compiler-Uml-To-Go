@@ -25,11 +25,17 @@ func Generate(program *ast.Program) ([]byte, error) {
 
 	var out bytes.Buffer
 	out.WriteString("package main\n\n")
+	seenClasses := make(map[string]string)
 	for _, class := range program.Classes {
-		if !token.IsIdentifier(goIdentifier(class.Name, true)) || token.Lookup(goIdentifier(class.Name, true)).IsKeyword() {
+		className := goIdentifier(class.Name, true)
+		if !token.IsIdentifier(className) || token.Lookup(className).IsKeyword() {
 			return nil, fmt.Errorf("class %q cannot be converted to a valid Go identifier", class.Name)
 		}
-		fmt.Fprintf(&out, "type %s struct {\n", goIdentifier(class.Name, true))
+		if previous, exists := seenClasses[className]; exists {
+			return nil, fmt.Errorf("classes %q and %q map to the same Go type %q", previous, class.Name, className)
+		}
+		seenClasses[className] = class.Name
+		fmt.Fprintf(&out, "type %s struct {\n", className)
 		seenFields := make(map[string]string)
 		for _, attr := range class.Attributes {
 			name := goIdentifier(attr.Name, attr.Visibility == "+")
@@ -47,8 +53,11 @@ func Generate(program *ast.Program) ([]byte, error) {
 			if previous, exists := seenMethods[name]; exists {
 				return nil, fmt.Errorf("methods %q and %q in class %q map to the same Go method %q", previous, method.Name, class.Name, name)
 			}
+			if previous, exists := seenFields[name]; exists {
+				return nil, fmt.Errorf("attribute %q and method %q in class %q map to the same Go identifier %q", previous, method.Name, class.Name, name)
+			}
 			seenMethods[name] = method.Name
-			fmt.Fprintf(&out, "func (receiver *%s) %s(", goIdentifier(class.Name, true), name)
+			fmt.Fprintf(&out, "func (receiver *%s) %s(", className, name)
 			seenParams := make(map[string]string)
 			for i, param := range method.Parameters {
 				if i > 0 {

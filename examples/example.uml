@@ -1,0 +1,14 @@
+// Example input for UML2Code
+class User {
+    - id: int
+    - name: string
+    + login(): bool
+    + updateName(newName: string): void
+}
+
+class Product {
+    - id: int
+    - name: string
+    - price: float
+    + getPrice(): float
+}

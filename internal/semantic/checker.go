@@ -37,13 +37,61 @@ func Check(program *ast.Program) []error {
 		return []error{Diagnostic{Line: 1, Message: "program must declare at least one class"}}
 	}
 	classes := make(map[string]int)
+	classByName := make(map[string]ast.ClassDecl)
 	for _, class := range program.Classes {
 		if previousLine, exists := classes[class.Name]; exists {
 			diagnostics = append(diagnostics, Diagnostic{Line: class.Line, Message: fmt.Sprintf("class %q is declared more than once (first declared at line %d)", class.Name, previousLine)})
 		} else {
 			classes[class.Name] = class.Line
+			classByName[class.Name] = class
 		}
 		diagnostics = append(diagnostics, checkClass(class)...)
+	}
+	for _, class := range program.Classes {
+		if class.Extends != "" {
+			if _, exists := classByName[class.Extends]; !exists {
+				diagnostics = append(diagnostics, Diagnostic{Line: class.Line, Message: fmt.Sprintf("parent class %q referenced by %q is not declared", class.Extends, class.Name)})
+			}
+			if class.Extends == class.Name {
+				diagnostics = append(diagnostics, Diagnostic{Line: class.Line, Message: fmt.Sprintf("class %q cannot inherit from itself", class.Name)})
+			}
+		}
+	}
+	// Detect inheritance cycles using a three-state DFS.
+	state := make(map[string]int)
+	var visit func(string, []string)
+	visit = func(name string, path []string) {
+		if state[name] == 2 {
+			return
+		}
+		if state[name] == 1 {
+			diagnostics = append(diagnostics, Diagnostic{Message: fmt.Sprintf("inheritance cycle detected: %s", strings.Join(append(path, name), " -> "))})
+			return
+		}
+		state[name] = 1
+		if c, ok := classByName[name]; ok && c.Extends != "" {
+			if _, exists := classByName[c.Extends]; exists {
+				visit(c.Extends, append(path, name))
+			}
+		}
+		state[name] = 2
+	}
+	for name := range classByName {
+		visit(name, nil)
+	}
+	seenAssociations := make(map[string]bool)
+	for _, association := range program.Associations {
+		if _, exists := classByName[association.Source]; !exists {
+			diagnostics = append(diagnostics, Diagnostic{Line: association.Line, Message: fmt.Sprintf("association source class %q is not declared", association.Source)})
+		}
+		if _, exists := classByName[association.Target]; !exists {
+			diagnostics = append(diagnostics, Diagnostic{Line: association.Line, Message: fmt.Sprintf("association target class %q is not declared", association.Target)})
+		}
+		key := association.Source + "->" + association.Target
+		if seenAssociations[key] {
+			diagnostics = append(diagnostics, Diagnostic{Line: association.Line, Message: fmt.Sprintf("association %s -> %s is declared more than once", association.Source, association.Target)})
+		}
+		seenAssociations[key] = true
 	}
 	return diagnostics
 }

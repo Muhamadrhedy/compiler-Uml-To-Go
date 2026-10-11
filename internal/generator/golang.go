@@ -26,6 +26,10 @@ func Generate(program *ast.Program) ([]byte, error) {
 	var out bytes.Buffer
 	out.WriteString("package main\n\n")
 	seenClasses := make(map[string]string)
+	associationsBySource := make(map[string][]string)
+	for _, association := range program.Associations {
+		associationsBySource[association.Source] = append(associationsBySource[association.Source], association.Target)
+	}
 	for _, class := range program.Classes {
 		className := goIdentifier(class.Name, true)
 		if !token.IsIdentifier(className) || token.Lookup(className).IsKeyword() {
@@ -37,6 +41,14 @@ func Generate(program *ast.Program) ([]byte, error) {
 		seenClasses[className] = class.Name
 		fmt.Fprintf(&out, "type %s struct {\n", className)
 		seenFields := make(map[string]string)
+		if class.Extends != "" {
+			parentName := goIdentifier(class.Extends, true)
+			if previous, exists := seenFields[parentName]; exists {
+				return nil, fmt.Errorf("parent type %q conflicts with field %q in class %q", parentName, previous, class.Name)
+			}
+			seenFields[parentName] = "embedded parent " + class.Extends
+			fmt.Fprintf(&out, "\t*%s\n", parentName)
+		}
 		for _, attr := range class.Attributes {
 			name := goIdentifier(attr.Name, attr.Visibility == "+")
 			if previous, exists := seenFields[name]; exists {
@@ -44,6 +56,14 @@ func Generate(program *ast.Program) ([]byte, error) {
 			}
 			seenFields[name] = attr.Name
 			fmt.Fprintf(&out, "\t%s %s\n", name, goType(attr.Type))
+		}
+		for _, target := range associationsBySource[class.Name] {
+			fieldName := goIdentifier(target, true)
+			if previous, exists := seenFields[fieldName]; exists {
+				return nil, fmt.Errorf("association field %q conflicts with %s in class %q", fieldName, previous, class.Name)
+			}
+			seenFields[fieldName] = "association to " + target
+			fmt.Fprintf(&out, "\t%s *%s\n", fieldName, goIdentifier(target, true))
 		}
 		out.WriteString("}\n\n")
 

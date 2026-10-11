@@ -53,7 +53,11 @@ func (l *Lexer) scanToken() error {
 	case '+':
 		l.add(TokenPlus)
 	case '-':
-		l.add(TokenMinus)
+		if l.match('>') {
+			l.tokens = append(l.tokens, Token{Kind: TokenArrow, Lexeme: "->", Line: l.startLine, Column: l.startColumn})
+		} else {
+			l.add(TokenMinus)
+		}
 	case '#':
 		l.add(TokenHash)
 	case ':':

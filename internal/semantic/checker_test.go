@@ -64,3 +64,21 @@ func assertContains(t *testing.T, errors []error, part string) {
 func TestCheckRejectsProgramWithoutClasses(t *testing.T) {
 	assertContains(t, Check(&ast.Program{}), "at least one class")
 }
+
+func TestInheritanceAndAssociationValidation(t *testing.T) {
+	valid := &ast.Program{
+		Classes:      []ast.ClassDecl{{Name: "Person", Line: 1}, {Name: "Student", Extends: "Person", Line: 2}},
+		Associations: []ast.AssociationDecl{{Source: "Student", Target: "Person", Line: 5}},
+	}
+	if diagnostics := Check(valid); len(diagnostics) != 0 {
+		t.Fatalf("expected valid relationships, got %v", diagnostics)
+	}
+
+	invalid := &ast.Program{
+		Classes:      []ast.ClassDecl{{Name: "A", Extends: "B", Line: 1}, {Name: "B", Extends: "A", Line: 2}},
+		Associations: []ast.AssociationDecl{{Source: "A", Target: "Missing", Line: 3}},
+	}
+	if diagnostics := Check(invalid); len(diagnostics) == 0 {
+		t.Fatal("expected inheritance cycle and missing association target errors")
+	}
+}

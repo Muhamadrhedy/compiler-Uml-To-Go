@@ -67,3 +67,16 @@ The generator emits `package main` and an empty `main()` so the generated file c
 - Go identifier collision checks during generation
 
 Inheritance, relationships, constructors, generics, and method-body inference are out of scope for this MVP.
+
+## Stage 7: inheritance and associations
+
+The language now supports a single-parent declaration and directed single-valued associations:
+
+```text
+class Student extends Person {
+    - studentID: int
+}
+association Student -> Course
+```
+
+Inheritance is generated as a Go embedded pointer field (`*Person`), and the association becomes a pointer field (`Course *Course`) on `Student`. This is a practical Go mapping, not a claim that Go has class inheritance. See `docs/stage-7-relationships.md` for constraints.

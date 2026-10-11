@@ -81,3 +81,24 @@ func TestParseRejectsVoidAttribute(t *testing.T) {
 		t.Fatal("expected void attribute to be rejected")
 	}
 }
+
+func TestParseInheritanceAndAssociation(t *testing.T) {
+	source := "class Person {\n    - name: string\n}\nclass Student extends Person {\n    - studentID: int\n}\nassociation Student -> Person\n"
+	tokens, err := lexer.New(source).Scan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	program, err := New(tokens).Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(program.Classes) != 2 {
+		t.Fatalf("expected 2 classes, got %d", len(program.Classes))
+	}
+	if program.Classes[1].Extends != "Person" {
+		t.Fatalf("expected Student extends Person, got %q", program.Classes[1].Extends)
+	}
+	if len(program.Associations) != 1 || program.Associations[0].Source != "Student" || program.Associations[0].Target != "Person" {
+		t.Fatalf("unexpected associations: %#v", program.Associations)
+	}
+}

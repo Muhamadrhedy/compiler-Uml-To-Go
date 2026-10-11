@@ -21,6 +21,7 @@ const (
 	TokenHash   Kind = "#"
 	TokenColon  Kind = ":"
 	TokenComma  Kind = ","
+	TokenArrow  Kind = "->"
 	TokenLParen Kind = "("
 	TokenRParen Kind = ")"
 	TokenLBrace Kind = "{"

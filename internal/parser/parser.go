@@ -14,22 +14,51 @@ type Parser struct {
 	current int
 }
 
-// New creates a parser for the provided token stream. The stream should end in EOF.
+// New creates a parser for the provided token stream.
 func New(tokens []lexer.Token) *Parser { return &Parser{tokens: tokens} }
 
-// Parse parses a complete program.
+// Parse parses a complete program containing classes and optional associations.
 func (p *Parser) Parse() (*ast.Program, error) {
 	program := &ast.Program{}
 	p.skipNewlines()
 	for !p.check(lexer.TokenEOF) {
-		classDecl, err := p.parseClass()
-		if err != nil {
-			return nil, err
+		if p.check(lexer.TokenClass) {
+			classDecl, err := p.parseClass()
+			if err != nil {
+				return nil, err
+			}
+			program.Classes = append(program.Classes, classDecl)
+		} else if p.check(lexer.TokenIdentifier) && p.peek().Lexeme == "association" {
+			association, err := p.parseAssociation()
+			if err != nil {
+				return nil, err
+			}
+			program.Associations = append(program.Associations, association)
+		} else {
+			return nil, p.errorAt(p.peek(), "expected 'class' declaration or 'association' declaration")
 		}
-		program.Classes = append(program.Classes, classDecl)
+		if !p.check(lexer.TokenEOF) && !p.check(lexer.TokenNewline) {
+			return nil, p.errorAt(p.peek(), "expected a newline after declaration")
+		}
 		p.skipNewlines()
 	}
 	return program, nil
+}
+
+func (p *Parser) parseAssociation() (ast.AssociationDecl, error) {
+	keyword := p.advance()
+	source, err := p.expect(lexer.TokenIdentifier, "expected source class name after 'association'")
+	if err != nil {
+		return ast.AssociationDecl{}, err
+	}
+	if _, err = p.expect(lexer.TokenArrow, "expected '->' between association classes"); err != nil {
+		return ast.AssociationDecl{}, err
+	}
+	target, err := p.expect(lexer.TokenIdentifier, "expected target class name after '->'")
+	if err != nil {
+		return ast.AssociationDecl{}, err
+	}
+	return ast.AssociationDecl{Source: source.Lexeme, Target: target.Lexeme, Line: keyword.Line}, nil
 }
 
 func (p *Parser) parseClass() (ast.ClassDecl, error) {
@@ -41,11 +70,19 @@ func (p *Parser) parseClass() (ast.ClassDecl, error) {
 	if err != nil {
 		return ast.ClassDecl{}, err
 	}
-	if _, err = p.expect(lexer.TokenLBrace, "expected '{' after class name"); err != nil {
+	classDecl := ast.ClassDecl{Name: name.Lexeme, Line: keyword.Line}
+	// Optional inheritance clause: class Child extends Parent { ... }
+	if p.check(lexer.TokenIdentifier) && p.peek().Lexeme == "extends" {
+		p.advance()
+		parent, err := p.expect(lexer.TokenIdentifier, "expected parent class name after 'extends'")
+		if err != nil {
+			return ast.ClassDecl{}, err
+		}
+		classDecl.Extends = parent.Lexeme
+	}
+	if _, err = p.expect(lexer.TokenLBrace, "expected '{' after class declaration"); err != nil {
 		return ast.ClassDecl{}, err
 	}
-
-	classDecl := ast.ClassDecl{Name: name.Lexeme, Line: keyword.Line}
 	p.skipNewlines()
 	for !p.check(lexer.TokenRBrace) && !p.check(lexer.TokenEOF) {
 		member, err := p.parseMember()
@@ -79,7 +116,6 @@ func (p *Parser) parseMember() (any, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if p.match(lexer.TokenColon) {
 		typ, err := p.parseType()
 		if err != nil {
@@ -140,7 +176,6 @@ func (p *Parser) parseType() (lexer.Token, error) {
 		return lexer.Token{}, p.errorAt(t, "expected type: int, float, string, bool, or void")
 	}
 }
-
 func (p *Parser) expect(kind lexer.Kind, message string) (lexer.Token, error) {
 	if p.check(kind) {
 		return p.advance(), nil

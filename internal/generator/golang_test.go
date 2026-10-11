@@ -91,3 +91,20 @@ func TestGenerateRejectsFieldAndMethodNameCollision(t *testing.T) {
 		t.Fatalf("expected field/method collision error, got %v", err)
 	}
 }
+
+func TestGenerateInheritanceAndAssociation(t *testing.T) {
+	program := &ast.Program{
+		Classes:      []ast.ClassDecl{{Name: "Person", Attributes: []ast.AttributeDecl{{Name: "name", Type: "string", Visibility: "-"}}}, {Name: "Student", Extends: "Person", Attributes: []ast.AttributeDecl{{Name: "studentID", Type: "int", Visibility: "-"}}}, {Name: "Course"}},
+		Associations: []ast.AssociationDecl{{Source: "Student", Target: "Course"}},
+	}
+	output, err := Generate(program)
+	if err != nil {
+		t.Fatal(err)
+	}
+	generated := string(output)
+	for _, expected := range []string{"type Student struct", "*Person", "Course    *Course"} {
+		if !strings.Contains(generated, expected) {
+			t.Fatalf("generated source missing %q:\n%s", expected, generated)
+		}
+	}
+}

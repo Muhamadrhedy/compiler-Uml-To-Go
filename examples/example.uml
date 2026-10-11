@@ -1,14 +1,18 @@
-// Example input for UML2Code
-class User {
-    - id: int
+// Base class
+class Person {
     - name: string
-    + login(): bool
-    + updateName(newName: string): void
+    + getName(): string
 }
 
-class Product {
-    - id: int
-    - name: string
-    - price: float
-    + getPrice(): float
+// Inheritance: Student embeds Person in generated Go.
+class Student extends Person {
+    - studentID: int
+    + isActive(): bool
 }
+
+class Course {
+    - title: string
+}
+
+// Directed, single-valued association: generated as Student.Course *Course.
+association Student -> Course

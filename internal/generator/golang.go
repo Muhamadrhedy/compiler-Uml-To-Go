@@ -69,6 +69,9 @@ func Generate(program *ast.Program) ([]byte, error) {
 		}
 	}
 
+	// The generated file is a standalone package main, so include an empty entry point.
+	out.WriteString("func main() {}\n")
+
 	formatted, err := format.Source(out.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("generated Go source is invalid: %w", err)

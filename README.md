@@ -1,35 +1,59 @@
-# UML2Code — Stage 4
+# UML2Code — Stage 5 (CLI end-to-end)
 
-UML2Code is a small compiler project that transforms a text-based UML Class Diagram representation into Go source code.
+UML2Code compiles a small text-based UML Class Diagram language into Go source code.
 
-## Implemented stages
+## Pipeline
 
-1. Lexer — converts source text into tokens.
-2. Parser — validates syntax and builds an AST.
-3. Semantic analyzer — checks duplicate classes/members/parameters and supported types.
-4. Go code generator — maps AST nodes into formatted Go declarations and method stubs.
+`source .uml → Lexer → Parser → AST → Semantic Analyzer → Go Code Generator → source .go`
 
-## Run tests
+## Requirements
+
+- Go 1.23 or newer
+
+## Run tests and static checks
 
 ```bash
 go test ./...
 go vet ./...
 ```
 
-## Generator API
+## Compile a UML file
 
-```go
-source, err := generator.Generate(program)
-if err != nil {
-    // handle invalid AST or generation error
-}
-// source contains formatted Go code
+```bash
+go run ./cmd/uml2code examples/example.uml -o output.go
 ```
 
-## Example
+If `-o` is omitted, the output uses the input name with a `.go` extension:
 
-Input `examples/example.uml` declares `User` and `Product` classes. The generator maps `float` to `float64`, converts public identifiers to exported Go names, and emits method stubs. Method bodies are not inferred from UML and are intentionally left as TODO stubs.
+```bash
+go run ./cmd/uml2code examples/example.uml
+```
 
-## Current limitation
+Validate without generating output:
 
-The generator is available as a Go package. CLI integration (reading a `.uml` file and writing a `.go` file) is the next stage.
+```bash
+go run ./cmd/uml2code -check examples/example.uml
+```
+
+Show help:
+
+```bash
+go run ./cmd/uml2code -h
+```
+
+## Validate generated Go
+
+```bash
+go build output.go
+```
+
+The generator emits `package main` and an empty `main()` so the generated file can be built as a standalone Go program. UML describes class structure and method signatures, not business logic, so generated methods contain a TODO panic stub. Replace those stubs with real implementations before using the generated program.
+
+## Current language scope
+
+- Classes, attributes, and methods
+- Visibility markers `+`, `-`, `#`
+- Types `int`, `float`, `string`, `bool`, `void` (void only as a method return type)
+- Duplicate declaration and supported-type checks
+
+Inheritance, relationships, constructors, generics, and method-body inference are out of scope for this MVP.
